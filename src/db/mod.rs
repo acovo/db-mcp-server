@@ -20,6 +20,6 @@ pub use database_pool::{
     DatabasePoolConfig, DatabasePoolEntry, DatabasePoolManager, DatabaseTarget,
 };
 pub use executor::QueryExecutor;
-pub use pool::{ConnectionManager, ConnectionSummary, DbPool, PoolGuard};
+pub use pool::{ConnectionManager, ConnectionSummary, DbPool, PoolGuard, UpdateConnectionResult};
 pub use schema::{DatabaseInfoRow, SchemaInspector};
 pub use transaction_registry::TransactionRegistry;

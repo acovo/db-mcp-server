@@ -9,7 +9,6 @@ use crate::error::DbResult;
 use crate::mcp::DbService;
 use crate::transport::Transport;
 use axum::middleware;
-use tower::util::option_layer;
 use rmcp::transport::streamable_http_server::{
     StreamableHttpService, session::local::LocalSessionManager,
 };
@@ -17,6 +16,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::signal;
+use tower::util::option_layer;
 use tracing::{error, info, warn};
 
 /// Default query timeout in seconds.

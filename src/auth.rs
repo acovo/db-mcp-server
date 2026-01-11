@@ -32,11 +32,17 @@ impl AuthConfig {
             valid_tokens.insert(trimmed);
         }
         let enabled = !valid_tokens.is_empty();
-        Ok(Self { enabled, tokens: valid_tokens })
+        Ok(Self {
+            enabled,
+            tokens: valid_tokens,
+        })
     }
 
     pub fn disabled() -> Self {
-        Self { enabled: false, tokens: HashSet::new() }
+        Self {
+            enabled: false,
+            tokens: HashSet::new(),
+        }
     }
 
     pub fn is_enabled(&self) -> bool {
@@ -71,7 +77,10 @@ pub async fn auth_middleware(
         }
         Err(msg) => {
             warn!("Authentication failed: invalid header format");
-            return unauthorized_response(msg, "Use the format: 'Authorization: Bearer <your-token>'");
+            return unauthorized_response(
+                msg,
+                "Use the format: 'Authorization: Bearer <your-token>'",
+            );
         }
     };
 
@@ -134,9 +143,15 @@ fn mask_token(token: &str) -> String {
 
 fn unauthorized_response(message: impl Into<String>, suggestion: impl Into<String>) -> Response {
     #[derive(Serialize)]
-    struct ErrorResponse { error: ErrorDetail }
+    struct ErrorResponse {
+        error: ErrorDetail,
+    }
     #[derive(Serialize)]
-    struct ErrorDetail { code: &'static str, message: String, suggestion: String }
+    struct ErrorDetail {
+        code: &'static str,
+        message: String,
+        suggestion: String,
+    }
 
     let body = ErrorResponse {
         error: ErrorDetail {
@@ -149,5 +164,10 @@ fn unauthorized_response(message: impl Into<String>, suggestion: impl Into<Strin
         r#"{"error":{"code":"unauthorized","message":"Authentication failed"}}"#.to_string()
     });
 
-    (StatusCode::UNAUTHORIZED, [(header::CONTENT_TYPE, "application/json")], json).into_response()
+    (
+        StatusCode::UNAUTHORIZED,
+        [(header::CONTENT_TYPE, "application/json")],
+        json,
+    )
+        .into_response()
 }

@@ -133,7 +133,9 @@ impl ConnectionConfig {
         })
     }
 
-    fn parse_url_components(connection_string: &str) -> (Option<String>, Option<u16>, Option<String>) {
+    fn parse_url_components(
+        connection_string: &str,
+    ) -> (Option<String>, Option<u16>, Option<String>) {
         let Ok(url) = Url::parse(connection_string) else {
             return (None, None, None);
         };
@@ -147,6 +149,130 @@ impl ConnectionConfig {
         };
 
         (host, port, user)
+    }
+
+    /// Create a connection configuration from a URL with optional ID and writable flag.
+    ///
+    /// This is used by the add_connection tool to parse a connection URL and
+    /// create a configuration with sensible defaults.
+    pub fn from_url_with_options(
+        url: &str,
+        connection_id: Option<&str>,
+        writable: bool,
+    ) -> Result<Self, crate::error::DbError> {
+        use crate::error::DbError;
+
+        // Detect database type
+        let db_type = DatabaseType::from_connection_string(url).ok_or_else(|| {
+            DbError::invalid_connection_url(
+                format!("Unknown database type in URL: {}", url),
+                "Use postgres://, mysql://, or sqlite: prefix",
+            )
+        })?;
+
+        // Generate or validate connection ID
+        let id = if let Some(id) = connection_id {
+            let id = id.trim();
+            if id.is_empty() {
+                return Err(DbError::invalid_input("connection_id cannot be empty"));
+            }
+            if !id
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+            {
+                return Err(DbError::invalid_input(format!(
+                    "connection_id contains invalid characters: {}. Use alphanumeric, dash, or underscore only.",
+                    id
+                )));
+            }
+            id.to_string()
+        } else {
+            // Auto-generate ID from URL
+            Self::generate_id_from_url(url, db_type)
+        };
+
+        // Determine if server-level connection (no database in URL)
+        let (server_level, database) = Self::parse_database_from_url(url, db_type);
+
+        // Parse host, port, user from connection URL
+        let (host, port, user) = if db_type == DatabaseType::SQLite {
+            (None, None, None)
+        } else {
+            Self::parse_url_components(url)
+        };
+
+        Ok(Self {
+            id,
+            db_type,
+            connection_string: url.to_string(),
+            writable,
+            server_level,
+            database,
+            host,
+            port,
+            user,
+            pool_options: PoolOptions::default(),
+        })
+    }
+
+    fn generate_id_from_url(url: &str, db_type: DatabaseType) -> String {
+        match db_type {
+            DatabaseType::SQLite => {
+                // Extract filename from sqlite:path/to/file.db
+                let path = url
+                    .trim_start_matches("sqlite://")
+                    .trim_start_matches("sqlite:");
+                std::path::Path::new(path)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("sqlite")
+                    .chars()
+                    .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_')
+                    .collect::<String>()
+            }
+            _ => {
+                // Extract database name from URL path, or use host
+                if let Ok(parsed) = Url::parse(url) {
+                    let db_name = parsed.path().trim_start_matches('/');
+                    if !db_name.is_empty() {
+                        db_name
+                            .chars()
+                            .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_')
+                            .collect::<String>()
+                    } else if let Some(host) = parsed.host_str() {
+                        format!(
+                            "{}-{}",
+                            db_type.to_string().to_lowercase(),
+                            host.chars()
+                                .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_')
+                                .collect::<String>()
+                        )
+                    } else {
+                        uuid::Uuid::new_v4().simple().to_string()
+                    }
+                } else {
+                    uuid::Uuid::new_v4().simple().to_string()
+                }
+            }
+        }
+    }
+
+    fn parse_database_from_url(url: &str, db_type: DatabaseType) -> (bool, Option<String>) {
+        match db_type {
+            DatabaseType::SQLite => (false, None), // SQLite is never server-level
+            _ => {
+                if let Ok(parsed) = Url::parse(url) {
+                    let db_name = parsed.path().trim_start_matches('/');
+                    if db_name.is_empty() {
+                        (true, None) // Server-level
+                    } else {
+                        (false, Some(db_name.to_string()))
+                    }
+                } else {
+                    (false, None)
+                }
+            }
+        }
     }
 
     /// Get a display-safe version of the connection string (credentials masked).

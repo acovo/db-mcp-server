@@ -14,6 +14,7 @@
 //! - `guard`: Dangerous operation detection for execute tool
 //! - `format`: Shared output formatting utilities
 
+pub mod connection;
 pub mod explain;
 pub mod format;
 pub mod guard;
@@ -24,6 +25,10 @@ pub mod transaction;
 pub mod write;
 
 pub use crate::models::QueryParamInput;
+pub use connection::{
+    AddConnectionInput, AddConnectionOutput, ConnectionToolHandler, DeleteConnectionInput,
+    DeleteConnectionOutput, UpdateConnectionInput, UpdateConnectionOutput,
+};
 pub use explain::{ExplainInput, ExplainOutput, ExplainToolHandler};
 pub use format::OutputFormat;
 pub use query::{QueryInput, QueryOutput, QueryToolHandler};

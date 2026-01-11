@@ -45,26 +45,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::parse();
     init_tracing(&config);
 
-    // Require at least one database to be configured
-    if config.databases.is_empty() {
-        eprintln!("Error: At least one database must be configured.");
-        eprintln!();
-        eprintln!("Usage: db-mcp-server --database <connection_string>");
-        eprintln!("       db-mcp-server --database <id>=<connection_string>");
-        eprintln!("       db-mcp-server --database <connection_string>?writable=true");
-        eprintln!();
-        eprintln!("Examples:");
-        eprintln!("  db-mcp-server --database sqlite:data.db");
-        eprintln!("  db-mcp-server --database mydb=postgres://user:pass@localhost/mydb");
-        eprintln!("  db-mcp-server --database mysql://user:pass@localhost/sales?writable=true");
-        eprintln!("  db-mcp-server --database db1=sqlite:one.db --database db2=sqlite:two.db");
-        eprintln!();
-        eprintln!("Server-level connections (without database in URL):");
-        eprintln!("  db-mcp-server --database mysql://user:pass@localhost:3306");
-        eprintln!("  db-mcp-server --database postgres://user:pass@localhost:5432?writable=true");
-        std::process::exit(1);
-    }
-
     info!(
         transport = %config.transport,
         "Starting DB MCP Server v{}",

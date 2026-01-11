@@ -64,6 +64,19 @@ pub enum DbError {
 
     #[error("Invalid authorization header: {message}")]
     InvalidAuthHeader { message: String, suggestion: String },
+
+    #[error("Duplicate connection ID: '{connection_id}' already exists")]
+    DuplicateConnectionId { connection_id: String },
+
+    #[error("Cannot modify connection '{connection_id}': {count} active transaction(s)")]
+    ActiveTransactions {
+        connection_id: String,
+        count: usize,
+        suggestion: String,
+    },
+
+    #[error("Invalid connection URL: {message}")]
+    InvalidConnectionUrl { message: String, suggestion: String },
 }
 
 impl DbError {
@@ -183,6 +196,49 @@ impl DbError {
         }
     }
 
+    /// Create a duplicate connection ID error.
+    pub fn duplicate_connection_id(connection_id: impl Into<String>) -> Self {
+        Self::DuplicateConnectionId {
+            connection_id: connection_id.into(),
+        }
+    }
+
+    /// Create an active transactions error.
+    pub fn active_transactions(
+        connection_id: impl Into<String>,
+        suggestion: impl Into<String>,
+    ) -> Self {
+        Self::ActiveTransactions {
+            connection_id: connection_id.into(),
+            count: 0, // Will be set by caller if needed
+            suggestion: suggestion.into(),
+        }
+    }
+
+    /// Create an active transactions error with count.
+    pub fn active_transactions_with_count(
+        connection_id: impl Into<String>,
+        count: usize,
+        suggestion: impl Into<String>,
+    ) -> Self {
+        Self::ActiveTransactions {
+            connection_id: connection_id.into(),
+            count,
+            suggestion: suggestion.into(),
+        }
+    }
+
+    /// Create an invalid connection URL error.
+    pub fn invalid_connection_url(
+        message: impl Into<String>,
+        suggestion: impl Into<String>,
+    ) -> Self {
+        Self::InvalidConnectionUrl {
+            message: message.into(),
+            suggestion: suggestion.into(),
+        }
+    }
+
     /// Get the suggestion for this error, if available.
     pub fn suggestion(&self) -> Option<&str> {
         match self {
@@ -190,6 +246,8 @@ impl DbError {
             Self::Database { suggestion, .. } => Some(suggestion),
             Self::Unauthorized { suggestion, .. } => Some(suggestion),
             Self::InvalidAuthHeader { suggestion, .. } => Some(suggestion),
+            Self::ActiveTransactions { suggestion, .. } => Some(suggestion),
+            Self::InvalidConnectionUrl { suggestion, .. } => Some(suggestion),
             _ => None,
         }
     }
@@ -345,6 +403,20 @@ impl From<DbError> for rmcp::ErrorData {
                 rmcp::ErrorData::invalid_params(err.to_string(), suggestion_data(Some(suggestion)))
             }
             DbError::InvalidAuthHeader { suggestion, .. } => {
+                rmcp::ErrorData::invalid_params(err.to_string(), suggestion_data(Some(suggestion)))
+            }
+
+            // Connection management errors
+            DbError::DuplicateConnectionId { .. } => rmcp::ErrorData::invalid_params(
+                err.to_string(),
+                suggestion_data(Some(
+                    "Use a different connection_id or update the existing connection",
+                )),
+            ),
+            DbError::ActiveTransactions { suggestion, .. } => {
+                rmcp::ErrorData::invalid_params(err.to_string(), suggestion_data(Some(suggestion)))
+            }
+            DbError::InvalidConnectionUrl { suggestion, .. } => {
                 rmcp::ErrorData::invalid_params(err.to_string(), suggestion_data(Some(suggestion)))
             }
         }

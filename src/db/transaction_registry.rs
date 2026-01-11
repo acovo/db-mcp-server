@@ -675,6 +675,31 @@ impl TransactionRegistry {
         let txs = self.transactions.read().await;
         txs.len()
     }
+
+    /// Check if a connection has any active transactions.
+    pub async fn has_active_transactions(&self, connection_id: &str) -> bool {
+        let txs = self.transactions.read().await;
+        for entry_arc in txs.values() {
+            let entry = entry_arc.lock().await;
+            if entry.connection_id == connection_id && entry.transaction.is_some() {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Count active transactions for a connection.
+    pub async fn count_for_connection(&self, connection_id: &str) -> usize {
+        let txs = self.transactions.read().await;
+        let mut count = 0;
+        for entry_arc in txs.values() {
+            let entry = entry_arc.lock().await;
+            if entry.connection_id == connection_id && entry.transaction.is_some() {
+                count += 1;
+            }
+        }
+        count
+    }
 }
 
 impl Default for TransactionRegistry {

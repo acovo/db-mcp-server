@@ -42,6 +42,14 @@ pub struct ConnectionSummary {
     pub user: Option<String>,
 }
 
+/// Result of updating a connection.
+#[derive(Debug)]
+pub struct UpdateConnectionResult {
+    pub database_type: DatabaseType,
+    pub writable: bool,
+    pub url_changed: bool,
+}
+
 /// Database-specific connection pool (avoids AnyPool limitations).
 #[derive(Debug, Clone)]
 pub enum DbPool {
@@ -418,6 +426,130 @@ impl ConnectionManager {
             entry.connection.close().await;
         }
         info!("All connections closed");
+    }
+
+    /// Delete a connection by ID.
+    ///
+    /// The caller must ensure no active transactions exist before calling this.
+    pub async fn delete_connection(&self, connection_id: &str) -> DbResult<()> {
+        let entry = {
+            let mut pools = self.pools.write().await;
+            pools
+                .remove(connection_id)
+                .ok_or_else(|| DbError::connection_not_found(connection_id))?
+        };
+
+        // Close pool outside of lock
+        entry.connection.close().await;
+
+        info!(connection_id = %connection_id, "Connection deleted");
+        Ok(())
+    }
+
+    /// Update a connection's configuration.
+    ///
+    /// The caller must ensure no active transactions exist before calling this.
+    /// If URL is changed, the pool is recreated.
+    pub async fn update_connection(
+        &self,
+        connection_id: &str,
+        new_url: Option<&str>,
+        new_writable: Option<bool>,
+    ) -> DbResult<UpdateConnectionResult> {
+        // Get current config
+        let current_config = {
+            let pools = self.pools.read().await;
+            pools
+                .get(connection_id)
+                .map(|e| e.config.clone())
+                .ok_or_else(|| DbError::connection_not_found(connection_id))?
+        };
+
+        let url_changed = new_url.is_some() && new_url != Some(&current_config.connection_string);
+        let writable_changed =
+            new_writable.is_some() && new_writable != Some(current_config.writable);
+
+        if !url_changed && !writable_changed {
+            // No actual changes
+            return Ok(UpdateConnectionResult {
+                database_type: current_config.db_type,
+                writable: current_config.writable,
+                url_changed: false,
+            });
+        }
+
+        let new_writable_value = new_writable.unwrap_or(current_config.writable);
+
+        if url_changed {
+            // URL changed - need to recreate pool
+            let new_config = ConnectionConfig::from_url_with_options(
+                new_url.unwrap(),
+                Some(connection_id),
+                new_writable_value,
+            )?;
+
+            // Create new pool before taking write lock
+            let new_pool = self.create_pool(&new_config).await?;
+            let server_version = self.get_server_version(&new_pool).await;
+
+            let old_entry = {
+                let mut pools = self.pools.write().await;
+
+                // Verify connection still exists
+                if !pools.contains_key(connection_id) {
+                    // Connection was deleted concurrently
+                    drop(pools);
+                    new_pool.close().await;
+                    return Err(DbError::connection_not_found(connection_id));
+                }
+
+                let new_connection = if new_config.server_level {
+                    let db_pool_config = Self::create_database_pool_config(&new_config);
+                    let manager = DatabasePoolManager::new(db_pool_config);
+                    // Close the pool we just created since we're using a manager instead
+                    drop(new_pool);
+                    ConnectionPool::ServerLevel(manager)
+                } else {
+                    ConnectionPool::Database {
+                        pool: new_pool,
+                        server_version,
+                        override_manager: None,
+                    }
+                };
+
+                let new_entry = PoolEntry {
+                    connection: new_connection,
+                    config: new_config.clone(),
+                };
+
+                pools.insert(connection_id.to_string(), new_entry)
+            };
+
+            // Close old pool outside of lock
+            if let Some(old) = old_entry {
+                old.connection.close().await;
+            }
+
+            Ok(UpdateConnectionResult {
+                database_type: new_config.db_type,
+                writable: new_config.writable,
+                url_changed: true,
+            })
+        } else {
+            // Only writable changed - update in place
+            let mut pools = self.pools.write().await;
+            let entry = pools
+                .get_mut(connection_id)
+                .ok_or_else(|| DbError::connection_not_found(connection_id))?;
+
+            entry.config.writable = new_writable_value;
+
+            Ok(UpdateConnectionResult {
+                database_type: entry.config.db_type,
+                writable: new_writable_value,
+                url_changed: false,
+            })
+        }
     }
 
     fn create_database_pool_config(config: &ConnectionConfig) -> DatabasePoolConfig {

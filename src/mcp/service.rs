@@ -5,6 +5,10 @@
 //! Tool names use simplified format without `db_` prefix.
 
 use crate::db::{ConnectionManager, ConnectionSummary, TransactionRegistry};
+use crate::tools::connection::{
+    AddConnectionInput, AddConnectionOutput, ConnectionToolHandler, DeleteConnectionInput,
+    DeleteConnectionOutput, UpdateConnectionInput, UpdateConnectionOutput,
+};
 use crate::tools::explain::{ExplainInput, ExplainOutput, ExplainToolHandler};
 use crate::tools::query::{QueryInput, QueryOutput, QueryToolHandler};
 use crate::tools::schema::{
@@ -291,6 +295,60 @@ impl DbService {
             self.transaction_registry.clone(),
         );
         handler.explain(input).await.map(Json).map_err(Into::into)
+    }
+
+    #[tool(
+        description = "Add a new database connection at runtime.\nSupports MySQL, PostgreSQL, and SQLite.\nConnection is immediately usable after success."
+    )]
+    async fn add_connection(
+        &self,
+        Parameters(input): Parameters<AddConnectionInput>,
+    ) -> Result<Json<AddConnectionOutput>, McpError> {
+        let handler = ConnectionToolHandler::new(
+            self.connection_manager.clone(),
+            self.transaction_registry.clone(),
+        );
+        handler
+            .add_connection(input)
+            .await
+            .map(Json)
+            .map_err(Into::into)
+    }
+
+    #[tool(
+        description = "Remove an existing database connection.\nFails if the connection has active transactions.\nReleases all connection pool resources."
+    )]
+    async fn delete_connection(
+        &self,
+        Parameters(input): Parameters<DeleteConnectionInput>,
+    ) -> Result<Json<DeleteConnectionOutput>, McpError> {
+        let handler = ConnectionToolHandler::new(
+            self.connection_manager.clone(),
+            self.transaction_registry.clone(),
+        );
+        handler
+            .delete_connection(input)
+            .await
+            .map(Json)
+            .map_err(Into::into)
+    }
+
+    #[tool(
+        description = "Update an existing connection's configuration.\nCan change URL (recreates pool) or writable flag.\nFails if the connection has active transactions."
+    )]
+    async fn update_connection(
+        &self,
+        Parameters(input): Parameters<UpdateConnectionInput>,
+    ) -> Result<Json<UpdateConnectionOutput>, McpError> {
+        let handler = ConnectionToolHandler::new(
+            self.connection_manager.clone(),
+            self.transaction_registry.clone(),
+        );
+        handler
+            .update_connection(input)
+            .await
+            .map(Json)
+            .map_err(Into::into)
     }
 }
 
