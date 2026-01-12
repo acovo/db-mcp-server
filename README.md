@@ -15,6 +15,7 @@ A Rust-based [MCP](https://modelcontextprotocol.io/) server that enables AI assi
 - **Server-level connections**: Connect to database server without selecting a database
 - **Dangerous operation guard**: AST-based protection against DROP, TRUNCATE, and unqualified DELETE/UPDATE
 - **Lazy per-database pools**: Efficient connection pooling for server-level connections
+- **Dynamic connection management**: Add, update, or remove database connections at runtime
 - **Output formatting**: JSON, ASCII table, or Markdown table formats
 
 ## Installation
@@ -171,6 +172,14 @@ Authorization: Bearer my-secret-token
 | `begin_transaction` | Start a new transaction (returns transaction_id) |
 | `commit` | Commit a transaction by transaction_id |
 | `rollback` | Rollback a transaction by transaction_id |
+
+### Connection Management Tools
+
+| Tool | Description |
+|------|-------------|
+| `add_connection` | Add a new database connection at runtime |
+| `update_connection` | Update connection URL or writable flag (fails if active transactions) |
+| `delete_connection` | Remove a connection (fails if active transactions) |
 
 ### Key Features
 
