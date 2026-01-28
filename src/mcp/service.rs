@@ -34,6 +34,7 @@ use std::sync::Arc;
 
 /// Output for the list_connections tool.
 #[derive(Debug, Serialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ListConnectionsOutput {
     /// List of available database connections
     pub connections: Vec<ConnectionSummary>,

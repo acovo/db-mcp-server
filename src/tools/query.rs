@@ -22,6 +22,7 @@ fn default_decode_binary() -> bool {
 
 /// Input for the query tool.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct QueryInput {
     /// Database connection ID from list_connections
     pub connection_id: String,
@@ -52,6 +53,7 @@ pub struct QueryInput {
 
 /// Output from the query tool.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct QueryOutput {
     /// Query result rows as key-value maps. Empty if format is table/markdown.
     #[serde(skip_serializing_if = "Vec::is_empty")]

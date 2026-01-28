@@ -17,6 +17,7 @@ use tracing::info;
 
 /// Input for the execute tool.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ExecuteInput {
     /// Database connection ID from list_connections. Must be a writable connection (writable: true).
     pub connection_id: String,
@@ -52,6 +53,7 @@ pub struct ExecuteInput {
 
 /// Output from the execute tool.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ExecuteOutput {
     /// Number of rows affected by the operation
     pub rows_affected: u64,

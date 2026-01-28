@@ -23,6 +23,7 @@ pub const MAX_QUERY_TIMEOUT_SECS: u32 = 300;
 /// This enum is used for MCP tool input parameters. It supports the common
 /// JSON types that can be provided by external callers.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 #[serde(untagged)]
 pub enum QueryParamInput {
     Null,
