@@ -22,7 +22,6 @@ fn default_decode_binary() -> bool {
 
 /// Input for the query tool.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
-#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct QueryInput {
     /// Database connection ID from list_connections
     pub connection_id: String,
@@ -37,7 +36,7 @@ pub struct QueryInput {
     /// Query timeout in seconds. Default: 30
     #[serde(default)]
     pub timeout_secs: Option<u32>,
-    /// Output format: "json" returns structured data, "table" returns ASCII table, "markdown" returns markdown table
+    /// Output format: json (default), table, or markdown
     #[serde(default)]
     pub format: OutputFormat,
     /// Decode binary as UTF-8 when possible (default: true). Falls back to base64.
@@ -53,7 +52,6 @@ pub struct QueryInput {
 
 /// Output from the query tool.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
-#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct QueryOutput {
     /// Query result rows as key-value maps. Empty if format is table/markdown.
     #[serde(skip_serializing_if = "Vec::is_empty")]

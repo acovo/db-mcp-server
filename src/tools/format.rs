@@ -12,9 +12,12 @@ use unicode_width::UnicodeWidthStr;
 #[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum OutputFormat {
+    /// Structured JSON data (default)
     #[default]
     Json,
+    /// ASCII table for human-readable display
     Table,
+    /// Markdown table
     Markdown,
 }
 
@@ -50,13 +53,27 @@ pub fn format_as_table(
         return "Empty set".to_string();
     }
 
+    // Cache formatted values to avoid duplicate format_value() calls
+    let formatted_rows: Vec<Vec<(String, bool)>> = rows
+        .iter()
+        .map(|row| {
+            columns
+                .iter()
+                .map(|col| {
+                    let value = row.get(&col.name).cloned().unwrap_or(JsonValue::Null);
+                    let is_number = matches!(value, JsonValue::Number(_));
+                    let formatted = format_value(&value);
+                    (formatted, is_number)
+                })
+                .collect()
+        })
+        .collect();
+
+    // Calculate column widths using cached formatted values
     let mut widths: Vec<usize> = columns.iter().map(|c| c.name.width()).collect();
-    for row in rows {
-        for (i, col) in columns.iter().enumerate() {
-            if let Some(value) = row.get(&col.name) {
-                let val_width = format_value(value).width();
-                widths[i] = widths[i].max(val_width);
-            }
+    for formatted_row in &formatted_rows {
+        for (i, (formatted, _)) in formatted_row.iter().enumerate() {
+            widths[i] = widths[i].max(formatted.width());
         }
     }
 
@@ -77,14 +94,12 @@ pub fn format_as_table(
     output.push_str(&header);
     output.push_str(&separator);
 
-    for row in rows {
-        let row_str: String = columns
+    for formatted_row in formatted_rows {
+        let row_str: String = formatted_row
             .iter()
             .zip(&widths)
-            .map(|(col, w)| {
-                let value = row.get(&col.name).cloned().unwrap_or(JsonValue::Null);
-                let formatted = format_value(&value);
-                if matches!(value, JsonValue::Number(_)) {
+            .map(|((formatted, is_number), w)| {
+                if *is_number {
                     format!("| {:>width$} ", formatted, width = w)
                 } else {
                     format!("| {:<width$} ", formatted, width = w)

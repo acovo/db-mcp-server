@@ -34,7 +34,6 @@ use std::sync::Arc;
 
 /// Output for the list_connections tool.
 #[derive(Debug, Serialize, JsonSchema)]
-#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ListConnectionsOutput {
     /// List of available database connections
     pub connections: Vec<ConnectionSummary>,
@@ -104,10 +103,54 @@ impl DbService {
         }
     }
 
-    /// Validate connection ID - ensure it is provided and non-empty.
-    ///
-    /// Returns the trimmed connection ID if valid, otherwise returns an error
-    /// guiding the user to call list_connections first.
+    fn build_instructions(&self) -> String {
+        let (connections_section, workflow) =
+            match self.connection_manager.format_connections_for_instructions() {
+                Some(connections_text) => (
+                    format!(
+                        "## Available Connections\n{}\n\n",
+                        connections_text
+                    ),
+                    "## Workflow\n\
+                    1. Use the `connection_id` from Available Connections in all tool calls\n\
+                    2. For server-level connections, use `database` parameter to target a specific database\n\
+                    3. Use `list_connections` to check for dynamically added connections"
+                        .to_string(),
+                ),
+                None => (
+                    String::new(),
+                    "## Workflow\n\
+                    1. Call `list_connections` to get available database IDs\n\
+                    2. Use the `connection_id` from step 1 in all other tool calls\n\
+                    3. For server-level connections, use `database` parameter to target a specific database"
+                        .to_string(),
+                ),
+            };
+
+        format!(
+            "Database tools for querying and managing SQL databases.\n\
+            \n\
+            {connections_section}\
+            {workflow}\n\
+            \n\
+            ## Transaction Workflow\n\
+            1. `begin_transaction` -> returns transaction_id\n\
+            2. `query`/`execute` with transaction_id -> operations within transaction\n\
+            3. `commit` or `rollback` with transaction_id -> finalize\n\
+            \n\
+            ## Tools by Category\n\
+            - **Read-only**: query, list_tables, describe_table, list_databases, explain\n\
+            - **Write** (requires writable: true): execute\n\
+            - **Transaction**: begin_transaction, commit, rollback\n\
+            - **Utility**: list_connections, list_transactions\n\
+            \n\
+            ## Database-Specific Notes\n\
+            - MySQL: Cross-database queries supported (use `db.table` syntax or `database` parameter)\n\
+            - PostgreSQL: Queries cannot span databases (use `database` parameter to switch)\n\
+            - SQLite: list_databases not supported (file-based)"
+        )
+    }
+
     fn validate_connection_id(&self, provided: &str) -> Result<String, McpError> {
         let trimmed = provided.trim();
         if trimmed.is_empty() {
@@ -168,7 +211,7 @@ impl DbService {
             .map_err(Into::into)
     }
 
-    #[tool(description = "List all tables and views in the database.")]
+    #[tool(description = "List all tables and views in the database.\nReturns name, type, row count, and size metadata for each table.")]
     async fn list_tables(
         &self,
         Parameters(input): Parameters<ListTablesInput>,
@@ -356,6 +399,7 @@ impl DbService {
 #[tool_handler]
 impl ServerHandler for DbService {
     fn get_info(&self) -> ServerInfo {
+        let instructions = self.build_instructions();
         ServerInfo {
             protocol_version: ProtocolVersion::V_2025_03_26,
             capabilities: ServerCapabilities::builder().enable_tools().build(),
@@ -363,34 +407,9 @@ impl ServerHandler for DbService {
                 name: "db-mcp-server".to_owned(),
                 title: Some("DB MCP Server".to_owned()),
                 version: env!("CARGO_PKG_VERSION").to_owned(),
-                icons: None,
-                website_url: None,
+                ..Implementation::default()
             },
-            instructions: Some(
-                "Database tools for querying and managing SQL databases.\n\
-                \n\
-                ## Workflow\n\
-                1. Call `list_connections` to get available database IDs\n\
-                2. Use the `connection_id` from step 1 in all other tool calls\n\
-                3. For server-level connections, use `database` parameter to target a specific database\n\
-                \n\
-                ## Transaction Workflow\n\
-                1. `begin_transaction` → returns transaction_id\n\
-                2. `query`/`execute` with transaction_id → operations within transaction\n\
-                3. `commit` or `rollback` with transaction_id → finalize\n\
-                \n\
-                ## Tools by Category\n\
-                - **Read-only**: query, list_tables, describe_table, list_databases, explain\n\
-                - **Write** (requires writable: true): execute\n\
-                - **Transaction**: begin_transaction, commit, rollback\n\
-                - **Utility**: list_connections, list_transactions\n\
-                \n\
-                ## Database-Specific Notes\n\
-                - MySQL: Cross-database queries supported (use `db.table` syntax or `database` parameter)\n\
-                - PostgreSQL: Queries cannot span databases (use `database` parameter to switch)\n\
-                - SQLite: list_databases not supported (file-based)"
-                    .to_string(),
-            ),
+            instructions: Some(instructions),
         }
     }
 }

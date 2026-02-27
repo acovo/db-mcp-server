@@ -19,7 +19,6 @@ use tracing::{debug, info, warn};
 
 /// Connection information returned by list_connections (no secrets exposed).
 #[derive(Debug, Clone, serde::Serialize, schemars::JsonSchema)]
-#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ConnectionSummary {
     /// Connection identifier. Use this value in connection_id parameter for all tool calls.
     pub id: String,
@@ -411,6 +410,45 @@ impl ConnectionManager {
                 user: entry.config.user.clone(),
             })
             .collect()
+    }
+
+    /// Format connection info for embedding in MCP server instructions.
+    ///
+    /// Uses `try_read()` (sync, non-blocking) since `get_info()` is a sync trait method.
+    /// Returns `None` if the lock cannot be acquired or no connections exist.
+    pub fn format_connections_for_instructions(&self) -> Option<String> {
+        let pools = self.pools.try_read().ok()?;
+        if pools.is_empty() {
+            return None;
+        }
+
+        let mut lines: Vec<String> = pools
+            .values()
+            .map(|entry| {
+                let c = &entry.config;
+                let access = if c.writable { "writable" } else { "read-only" };
+                let detail = if c.server_level {
+                    match (&c.host, c.port) {
+                        (Some(h), Some(p)) => format!("server-level, host: {}:{}", h, p),
+                        (Some(h), None) => format!("server-level, host: {}", h),
+                        _ => "server-level".to_string(),
+                    }
+                } else {
+                    match (&c.database, &c.host, c.port) {
+                        (Some(db), Some(h), Some(p)) => {
+                            format!("database: {}, host: {}:{}", db, h, p)
+                        }
+                        (Some(db), Some(h), None) => format!("database: {}, host: {}", db, h),
+                        (Some(db), _, _) => format!("database: {}", db),
+                        _ => "direct connection".to_string(),
+                    }
+                };
+                format!("- `{}`: {}, {}, {}", c.id, c.db_type, access, detail)
+            })
+            .collect();
+        lines.sort();
+
+        Some(lines.join("\n"))
     }
 
     /// Get the number of active connections.

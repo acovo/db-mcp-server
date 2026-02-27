@@ -21,7 +21,6 @@ use tracing::info;
 
 /// Input for the begin_transaction tool.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
-#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct BeginTransactionInput {
     /// Database connection ID from list_connections
     pub connection_id: String,
@@ -35,7 +34,6 @@ pub struct BeginTransactionInput {
 
 /// Output from the begin_transaction tool.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
-#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct BeginTransactionOutput {
     /// Unique transaction ID to use with query/execute/commit/rollback
     pub transaction_id: String,
@@ -87,7 +85,6 @@ pub struct RollbackOutput {
 
 /// Information about an active transaction.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
-#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct TransactionInfo {
     /// Unique transaction identifier
     pub transaction_id: String,
@@ -116,7 +113,6 @@ pub struct ListTransactionsInput {
 
 /// Output from the list_transactions tool.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
-#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ListTransactionsOutput {
     /// List of active transactions
     pub transactions: Vec<TransactionInfo>,

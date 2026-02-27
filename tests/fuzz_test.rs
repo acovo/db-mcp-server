@@ -10,13 +10,13 @@ use db_mcp_server::tools::transaction::{
     BeginTransactionInput, CommitInput, RollbackInput, TransactionToolHandler,
 };
 use db_mcp_server::tools::write::{ExecuteInput, WriteToolHandler};
-use rand::Rng;
-use rand::distributions::Alphanumeric;
+use rand::RngExt;
+use rand::distr::Alphanumeric;
 use std::sync::Arc;
 
 /// Generate random string of given length
 fn random_string(len: usize) -> String {
-    rand::thread_rng()
+    rand::rng()
         .sample_iter(&Alphanumeric)
         .take(len)
         .map(char::from)

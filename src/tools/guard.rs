@@ -184,6 +184,46 @@ fn is_readonly_statement(stmt: &Statement) -> bool {
     )
 }
 
+/// Combined SQL validity check for read-only and dangerous operations.
+///
+/// This function parses the SQL once and checks both conditions, avoiding
+/// duplicate parsing overhead when both checks are needed.
+pub fn check_sql_validity(sql: &str) -> DbResult<(ReadOnlyCheckResult, DangerousOperationResult)> {
+    let dialect = GenericDialect {};
+
+    let statements = Parser::parse_sql(&dialect, sql)
+        .map_err(|e| DbError::invalid_input(format!("Failed to parse SQL statement: {}", e)))?;
+
+    if statements.is_empty() {
+        return Err(DbError::invalid_input("Empty SQL statement"));
+    }
+
+    // Check read-only status
+    let mut all_readonly = true;
+    for stmt in &statements {
+        if !is_readonly_statement(stmt) {
+            all_readonly = false;
+            break;
+        }
+    }
+    let readonly_result = if all_readonly {
+        ReadOnlyCheckResult::ReadOnlyOperation
+    } else {
+        ReadOnlyCheckResult::WriteOperation
+    };
+
+    // Check dangerous operations
+    let mut dangerous_result = DangerousOperationResult::Safe;
+    for stmt in &statements {
+        if let Some(dangerous_type) = check_statement_dangerous(stmt) {
+            dangerous_result = DangerousOperationResult::Dangerous(dangerous_type);
+            break;
+        }
+    }
+
+    Ok((readonly_result, dangerous_result))
+}
+
 /// Check if a single statement is dangerous.
 fn check_statement_dangerous(stmt: &Statement) -> Option<DangerousOperationType> {
     match stmt {

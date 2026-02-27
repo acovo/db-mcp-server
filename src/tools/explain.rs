@@ -22,22 +22,21 @@ pub const MAX_EXPLAIN_TIMEOUT_SECS: u32 = 30;
 
 /// Input for the explain tool.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
-#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ExplainInput {
     /// Database connection ID from list_connections
     pub connection_id: String,
     /// SQL statement to explain (SELECT, INSERT, UPDATE, or DELETE)
     pub sql: String,
-    /// Positional parameters for parameterized queries
+    /// Positional parameters for parameterized queries (use ? or $1,$2... placeholders in SQL)
     #[serde(default)]
     pub params: Vec<QueryParamInput>,
-    /// Run explain within an existing transaction (from begin_transaction)
+    /// Run explain within an existing transaction (from begin_transaction). Omit for auto-commit.
     #[serde(default)]
     pub transaction_id: Option<String>,
     /// Timeout in seconds. Default: 30
     #[serde(default)]
     pub timeout_secs: Option<u32>,
-    /// Output format: "json" returns structured data, "table" returns ASCII table, "markdown" returns markdown table
+    /// Output format: json (default), table, or markdown
     #[serde(default)]
     pub format: OutputFormat,
     /// Target database name (optional)
@@ -47,7 +46,6 @@ pub struct ExplainInput {
 
 /// Output from the explain tool.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
-#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ExplainOutput {
     /// EXPLAIN result rows (format varies by database type). Empty if format is table/markdown.
     #[serde(skip_serializing_if = "Vec::is_empty")]

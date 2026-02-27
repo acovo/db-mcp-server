@@ -33,7 +33,6 @@ pub struct ListDatabasesInput {
 
 /// Information about a database on the server.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
-#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct DatabaseInfo {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -50,7 +49,6 @@ pub struct DatabaseInfo {
 
 /// Output for the list_databases tool.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
-#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ListDatabasesOutput {
     pub databases: Vec<DatabaseInfo>,
     pub count: usize,
@@ -80,7 +78,6 @@ pub fn format_size(bytes: u64) -> String {
 
 /// Output from the list_tables tool.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
-#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ListTablesOutput {
     /// List of tables/views with metadata
     pub tables: Vec<TableInfoOutput>,
@@ -89,7 +86,6 @@ pub struct ListTablesOutput {
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
-#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct TableInfoOutput {
     pub name: String,
     /// "TABLE" or "VIEW"

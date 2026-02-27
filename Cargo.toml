@@ -9,7 +9,7 @@ keywords = ["mcp", "database", "sqlite", "postgresql", "mysql"]
 categories = ["database", "command-line-utilities"]
 
 [dependencies]
-rmcp = { version = "0.12.0", features = [
+rmcp = { version = "0.16.0", features = [
     "transport-io",
     "transport-streamable-http-server",
 ] }
@@ -42,17 +42,17 @@ uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
 base64 = "0.22"
 humansize = "2"
-schemars = { version = "1.0", features = ["derive"] }
-futures-util = "0.3.31"
+schemars = { version = "1.2", features = ["derive"] }
+futures-util = "0.3.32"
 unicode-width = "0.2.2"
-sqlparser = "0.60"
+sqlparser = "0.61"
 subtle = "2.6"
 tower = { version = "0.5", default-features = false, features = ["util"] }
 
 [dev-dependencies]
 tokio-test = "0.4"
 tempfile = "3"
-rand = "0.8"
+rand = "0.10"
 
 [[bin]]
 name = "db-mcp-server"

@@ -429,75 +429,69 @@ impl TransactionRegistry {
                 for param in params {
                     query = bind_mysql_param(query, param);
                 }
-                let stream = query.fetch(&mut **tx);
-                let results: Vec<Result<sqlx::mysql::MySqlRow, sqlx::Error>> =
-                    stream.take(fetch_limit).collect().await;
+                let mut stream = query.fetch(&mut **tx);
+                let mut rows = Vec::with_capacity(fetch_limit);
+                let mut columns = Vec::new();
 
-                let mut rows = Vec::with_capacity(results.len());
-                for result in results {
-                    rows.push(result.map_err(DbError::from)?);
+                while let Some(result) = stream.next().await {
+                    let row = result.map_err(DbError::from)?;
+                    if columns.is_empty() {
+                        columns = row.get_column_names();
+                    }
+                    let json = row.to_json_map_with_options(decode_binary);
+                    rows.push(json);
+                    if rows.len() > fetch_limit {
+                        break;
+                    }
                 }
 
-                let columns = if rows.is_empty() {
-                    Vec::new()
-                } else {
-                    rows[0].get_column_names()
-                };
-                let json_rows: Vec<_> = rows
-                    .iter()
-                    .map(|r| r.to_json_map_with_options(decode_binary))
-                    .collect();
-                (columns, json_rows)
+                (columns, rows)
             }
             DbTransaction::Postgres(tx) => {
                 let mut query = sqlx::query(sql);
                 for param in params {
                     query = bind_postgres_param(query, param);
                 }
-                let stream = query.fetch(&mut **tx);
-                let results: Vec<Result<sqlx::postgres::PgRow, sqlx::Error>> =
-                    stream.take(fetch_limit).collect().await;
+                let mut stream = query.fetch(&mut **tx);
+                let mut rows = Vec::with_capacity(fetch_limit);
+                let mut columns = Vec::new();
 
-                let mut rows = Vec::with_capacity(results.len());
-                for result in results {
-                    rows.push(result.map_err(DbError::from)?);
+                while let Some(result) = stream.next().await {
+                    let row = result.map_err(DbError::from)?;
+                    if columns.is_empty() {
+                        columns = row.get_column_names();
+                    }
+                    let json = row.to_json_map_with_options(decode_binary);
+                    rows.push(json);
+                    if rows.len() > fetch_limit {
+                        break;
+                    }
                 }
 
-                let columns = if rows.is_empty() {
-                    Vec::new()
-                } else {
-                    rows[0].get_column_names()
-                };
-                let json_rows: Vec<_> = rows
-                    .iter()
-                    .map(|r| r.to_json_map_with_options(decode_binary))
-                    .collect();
-                (columns, json_rows)
+                (columns, rows)
             }
             DbTransaction::SQLite(tx) => {
                 let mut query = sqlx::query(sql);
                 for param in params {
                     query = bind_sqlite_param(query, param);
                 }
-                let stream = query.fetch(&mut **tx);
-                let results: Vec<Result<sqlx::sqlite::SqliteRow, sqlx::Error>> =
-                    stream.take(fetch_limit).collect().await;
+                let mut stream = query.fetch(&mut **tx);
+                let mut rows = Vec::with_capacity(fetch_limit);
+                let mut columns = Vec::new();
 
-                let mut rows = Vec::with_capacity(results.len());
-                for result in results {
-                    rows.push(result.map_err(DbError::from)?);
+                while let Some(result) = stream.next().await {
+                    let row = result.map_err(DbError::from)?;
+                    if columns.is_empty() {
+                        columns = row.get_column_names();
+                    }
+                    let json = row.to_json_map_with_options(decode_binary);
+                    rows.push(json);
+                    if rows.len() > fetch_limit {
+                        break;
+                    }
                 }
 
-                let columns = if rows.is_empty() {
-                    Vec::new()
-                } else {
-                    rows[0].get_column_names()
-                };
-                let json_rows: Vec<_> = rows
-                    .iter()
-                    .map(|r| r.to_json_map_with_options(decode_binary))
-                    .collect();
-                (columns, json_rows)
+                (columns, rows)
             }
         };
 

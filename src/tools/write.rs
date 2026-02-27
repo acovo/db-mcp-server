@@ -6,9 +6,7 @@
 use crate::db::{ConnectionManager, QueryExecutor, TransactionRegistry};
 use crate::error::{DbError, DbResult};
 use crate::models::{QueryParam, QueryParamInput};
-use crate::tools::guard::{
-    DangerousOperationResult, ReadOnlyCheckResult, check_dangerous_sql, check_readonly_sql,
-};
+use crate::tools::guard::{DangerousOperationResult, ReadOnlyCheckResult, check_sql_validity};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -17,7 +15,6 @@ use tracing::info;
 
 /// Input for the execute tool.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
-#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ExecuteInput {
     /// Database connection ID from list_connections. Must be a writable connection (writable: true).
     pub connection_id: String,
@@ -53,7 +50,6 @@ pub struct ExecuteInput {
 
 /// Output from the execute tool.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
-#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ExecuteOutput {
     /// Number of rows affected by the operation
     pub rows_affected: u64,
@@ -106,13 +102,15 @@ impl WriteToolHandler {
 
         // Skip SQL validation if requested (useful for unsupported SQL dialects)
         if !input.skip_sql_check {
-            if let ReadOnlyCheckResult::ReadOnlyOperation = check_readonly_sql(&input.sql)? {
+            let (readonly_result, dangerous_result) = check_sql_validity(&input.sql)?;
+
+            if let ReadOnlyCheckResult::ReadOnlyOperation = readonly_result {
                 return Err(DbError::invalid_input(
                     "This is a read-only operation (SELECT, SHOW, DESCRIBE, etc.). Use the 'query' tool instead of 'execute' for read operations.",
                 ));
             }
 
-            if let DangerousOperationResult::Dangerous(op_type) = check_dangerous_sql(&input.sql)? {
+            if let DangerousOperationResult::Dangerous(op_type) = dangerous_result {
                 return Err(DbError::dangerous_operation_blocked(
                     op_type.operation_name(),
                     op_type.reason(),

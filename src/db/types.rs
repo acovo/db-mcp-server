@@ -528,7 +528,6 @@ mod sqlite {
 // =============================================================================
 
 /// Normalize a database type name to a more consistent format.
-
 #[cfg(test)]
 mod tests {
     use super::*;
