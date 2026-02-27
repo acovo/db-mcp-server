@@ -10,6 +10,7 @@ use unicode_width::UnicodeWidthStr;
 
 /// Output format for query/explain results.
 #[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 #[serde(rename_all = "lowercase")]
 pub enum OutputFormat {
     /// Structured JSON data (default)

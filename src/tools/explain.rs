@@ -22,6 +22,7 @@ pub const MAX_EXPLAIN_TIMEOUT_SECS: u32 = 30;
 
 /// Input for the explain tool.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ExplainInput {
     /// Database connection ID from list_connections
     pub connection_id: String,
@@ -46,6 +47,7 @@ pub struct ExplainInput {
 
 /// Output from the explain tool.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ExplainOutput {
     /// EXPLAIN result rows (format varies by database type). Empty if format is table/markdown.
     #[serde(skip_serializing_if = "Vec::is_empty")]

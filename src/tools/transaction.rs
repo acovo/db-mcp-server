@@ -21,6 +21,7 @@ use tracing::info;
 
 /// Input for the begin_transaction tool.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct BeginTransactionInput {
     /// Database connection ID from list_connections
     pub connection_id: String,
@@ -34,6 +35,7 @@ pub struct BeginTransactionInput {
 
 /// Output from the begin_transaction tool.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct BeginTransactionOutput {
     /// Unique transaction ID to use with query/execute/commit/rollback
     pub transaction_id: String,
@@ -45,6 +47,7 @@ pub struct BeginTransactionOutput {
 
 /// Input for the commit tool.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct CommitInput {
     /// Database connection ID from list_connections
     pub connection_id: String,
@@ -54,6 +57,7 @@ pub struct CommitInput {
 
 /// Output from the commit tool.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct CommitOutput {
     /// Whether the commit succeeded
     pub success: bool,
@@ -65,6 +69,7 @@ pub struct CommitOutput {
 
 /// Input for the rollback tool.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct RollbackInput {
     /// Database connection ID from list_connections
     pub connection_id: String,
@@ -74,6 +79,7 @@ pub struct RollbackInput {
 
 /// Output from the rollback tool.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct RollbackOutput {
     /// Whether the rollback succeeded
     pub success: bool,
@@ -85,6 +91,7 @@ pub struct RollbackOutput {
 
 /// Information about an active transaction.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct TransactionInfo {
     /// Unique transaction identifier
     pub transaction_id: String,
@@ -105,6 +112,7 @@ pub const LONG_RUNNING_THRESHOLD_SECS: u64 = 300;
 
 /// Input for the list_transactions tool.
 #[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ListTransactionsInput {
     /// Filter by connection ID. If not specified, returns transactions from all connections.
     #[serde(default)]
@@ -113,6 +121,7 @@ pub struct ListTransactionsInput {
 
 /// Output from the list_transactions tool.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ListTransactionsOutput {
     /// List of active transactions
     pub transactions: Vec<TransactionInfo>,

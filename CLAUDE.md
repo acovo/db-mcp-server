@@ -34,7 +34,7 @@ Rust MCP server exposing SQL database operations (SQLite, PostgreSQL, MySQL) as 
 
 - Connections are read-only by default. Write requires `?writable=true` in the connection URL.
 - SQL validation uses `sqlparser` AST analysis (`src/tools/sql_validator.rs`, `src/tools/guard.rs`) to block dangerous operations (DROP, TRUNCATE, unqualified DELETE/UPDATE) before execution.
-- Tool input/output types live alongside their handler in `src/tools/*.rs`, using `schemars::JsonSchema` for MCP schema generation.
+- Tool input/output types live alongside their handler in `src/tools/*.rs`, using `schemars::JsonSchema` for MCP schema generation. All JsonSchema structs MUST have `#[schemars(transform = schemars::transform::RestrictFormats::default())]` to strip `format` fields (e.g. `"format": "uint32"`) that break stdio-based MCP clients.
 - `DbPool` enum wraps sqlx's typed pools; `src/db/executor.rs` dispatches queries across database backends.
 - `src/db/types.rs` handles cross-database type mapping and value conversion.
 - Config parsing (`src/config.rs`) uses clap with env var fallbacks (`MCP_DATABASE`, `MCP_TRANSPORT`, etc.).
@@ -42,9 +42,10 @@ Rust MCP server exposing SQL database operations (SQLite, PostgreSQL, MySQL) as 
 ### Adding a New Tool
 
 1. Create input/output types with `JsonSchema` + `Deserialize`/`Serialize` in `src/tools/`.
-2. Implement the handler method.
-3. Add the tool method to `DbService` in `src/mcp/service.rs` with `#[tool(description = "...")]`.
-4. The `#[tool_router]` macro auto-registers it.
+2. Add `#[schemars(transform = schemars::transform::RestrictFormats::default())]` to every JsonSchema struct.
+3. Implement the handler method.
+4. Add the tool method to `DbService` in `src/mcp/service.rs` with `#[tool(description = "...")]`.
+5. The `#[tool_router]` macro auto-registers it.
 
 ## Code Style
 

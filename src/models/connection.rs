@@ -9,6 +9,7 @@ use url::Url;
 
 /// Supported database types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 #[serde(rename_all = "lowercase")]
 pub enum DatabaseType {
     PostgreSQL,

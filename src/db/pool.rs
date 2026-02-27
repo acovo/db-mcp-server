@@ -19,6 +19,7 @@ use tracing::{debug, info, warn};
 
 /// Connection information returned by list_connections (no secrets exposed).
 #[derive(Debug, Clone, serde::Serialize, schemars::JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ConnectionSummary {
     /// Connection identifier. Use this value in connection_id parameter for all tool calls.
     pub id: String,

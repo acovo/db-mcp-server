@@ -13,6 +13,7 @@ use tracing::info;
 
 /// Input for the add_connection tool.
 #[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct AddConnectionInput {
     /// Database connection URL (e.g., 'sqlite:data.db', 'postgres://user:pass@host/db')
     pub url: String,
@@ -26,6 +27,7 @@ pub struct AddConnectionInput {
 
 /// Output for the add_connection tool.
 #[derive(Debug, Serialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct AddConnectionOutput {
     /// ID of the created connection
     pub connection_id: String,
@@ -37,6 +39,7 @@ pub struct AddConnectionOutput {
 
 /// Input for the delete_connection tool.
 #[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct DeleteConnectionInput {
     /// ID of the connection to delete
     pub connection_id: String,
@@ -44,6 +47,7 @@ pub struct DeleteConnectionInput {
 
 /// Output for the delete_connection tool.
 #[derive(Debug, Serialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct DeleteConnectionOutput {
     /// Always true on success
     pub deleted: bool,
@@ -53,6 +57,7 @@ pub struct DeleteConnectionOutput {
 
 /// Input for the update_connection tool.
 #[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct UpdateConnectionInput {
     /// ID of the connection to update
     pub connection_id: String,
@@ -66,6 +71,7 @@ pub struct UpdateConnectionInput {
 
 /// Output for the update_connection tool.
 #[derive(Debug, Serialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct UpdateConnectionOutput {
     /// ID of the updated connection
     pub connection_id: String,

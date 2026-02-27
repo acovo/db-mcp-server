@@ -13,6 +13,7 @@ use tracing::info;
 
 /// Input for the list_tables tool.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ListTablesInput {
     /// Database connection ID from list_connections
     pub connection_id: String,
@@ -26,6 +27,7 @@ pub struct ListTablesInput {
 
 /// Input for the list_databases tool.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ListDatabasesInput {
     /// Database connection ID from list_connections
     pub connection_id: String,
@@ -33,6 +35,7 @@ pub struct ListDatabasesInput {
 
 /// Information about a database on the server.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct DatabaseInfo {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -49,6 +52,7 @@ pub struct DatabaseInfo {
 
 /// Output for the list_databases tool.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ListDatabasesOutput {
     pub databases: Vec<DatabaseInfo>,
     pub count: usize,
@@ -78,6 +82,7 @@ pub fn format_size(bytes: u64) -> String {
 
 /// Output from the list_tables tool.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ListTablesOutput {
     /// List of tables/views with metadata
     pub tables: Vec<TableInfoOutput>,
@@ -86,6 +91,7 @@ pub struct ListTablesOutput {
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct TableInfoOutput {
     pub name: String,
     /// "TABLE" or "VIEW"
@@ -160,6 +166,7 @@ impl From<TableInfo> for TableInfoOutput {
 
 /// Input for the describe_table tool.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct DescribeTableInput {
     /// Database connection ID from list_connections
     pub connection_id: String,
@@ -172,6 +179,7 @@ pub struct DescribeTableInput {
 
 /// Output from the describe_table tool.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct DescribeTableOutput {
     /// Name of the described table
     pub table_name: String,
@@ -189,6 +197,7 @@ pub struct DescribeTableOutput {
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 #[schemars(inline)]
 pub struct ForeignKeyRef {
     pub table: String,
@@ -196,6 +205,7 @@ pub struct ForeignKeyRef {
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ColumnOutput {
     pub name: String,
     /// Full type (e.g., varchar(30), bigint unsigned)
@@ -237,6 +247,7 @@ impl From<ColumnDefinition> for ColumnOutput {
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ForeignKeyOutput {
     pub column: String,
     pub references_table: String,
@@ -260,6 +271,7 @@ impl From<ForeignKey> for ForeignKeyOutput {
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
+#[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct IndexOutput {
     pub name: String,
     pub columns: Vec<String>,
