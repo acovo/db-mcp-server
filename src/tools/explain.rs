@@ -8,7 +8,9 @@ use crate::db::params::{bind_mysql_param, bind_postgres_param, bind_sqlite_param
 use crate::db::{ConnectionManager, DbPool, TransactionRegistry};
 use crate::error::{DbError, DbResult};
 use crate::models::{QueryParam, QueryParamInput};
-use crate::tools::format::{ColumnInfo, OutputFormat, format_as_markdown, format_as_table};
+use crate::tools::format::{
+    ColumnInfo, OutputFormat, build_compact_rows, format_as_markdown, format_as_table,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -37,7 +39,7 @@ pub struct ExplainInput {
     /// Timeout in seconds. Default: 30
     #[serde(default)]
     pub timeout_secs: Option<u32>,
-    /// Output format: json (default), table, or markdown
+    /// Output format: compact (default), json, table, or markdown
     #[serde(default)]
     pub format: OutputFormat,
     /// Target database name (optional)
@@ -49,15 +51,13 @@ pub struct ExplainInput {
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 #[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct ExplainOutput {
-    /// EXPLAIN result rows (format varies by database type). Empty if format is table/markdown.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub columns: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub plan: Vec<serde_json::Map<String, serde_json::Value>>,
-    /// The SQL statement that was explained
+    pub rows: Vec<serde_json::Value>,
     pub sql: String,
-    /// Pre-formatted output when format is table or markdown
     #[serde(skip_serializing_if = "Option::is_none")]
     pub formatted: Option<String>,
-    /// Time taken to run EXPLAIN in milliseconds
     pub execution_time_ms: u64,
 }
 
@@ -101,33 +101,52 @@ impl ExplainToolHandler {
         execution_time_ms: u64,
         format: OutputFormat,
     ) -> ExplainOutput {
+        let columns: Vec<ColumnInfo> = if let Some(first_row) = rows.first() {
+            first_row.keys().map(ColumnInfo::new).collect()
+        } else {
+            Vec::new()
+        };
+        let row_count = rows.len();
+
         match format {
-            OutputFormat::Json => ExplainOutput {
-                plan: rows,
-                sql: sql.to_string(),
-                formatted: None,
-                execution_time_ms,
-            },
-            OutputFormat::Table | OutputFormat::Markdown => {
-                let columns: Vec<ColumnInfo> = if let Some(first_row) = rows.first() {
-                    first_row.keys().map(ColumnInfo::new).collect()
-                } else {
-                    Vec::new()
-                };
-
-                let row_count = rows.len();
-                let formatted = match format {
-                    OutputFormat::Table => {
-                        format_as_table(&columns, &rows, row_count, execution_time_ms)
-                    }
-                    OutputFormat::Markdown => format_as_markdown(&columns, &rows, row_count),
-                    _ => unreachable!(),
-                };
-
+            OutputFormat::Compact => {
+                let col_names = columns.iter().map(|c| c.name.clone()).collect();
+                let compact_rows = build_compact_rows(&columns, &rows);
                 ExplainOutput {
-                    plan: Vec::new(),
+                    columns: Some(col_names),
+                    rows: compact_rows,
+                    sql: sql.to_string(),
+                    formatted: None,
+                    execution_time_ms,
+                }
+            }
+            OutputFormat::Table => {
+                let formatted = format_as_table(&columns, &rows, row_count, execution_time_ms);
+                ExplainOutput {
+                    columns: None,
+                    rows: Vec::new(),
                     sql: sql.to_string(),
                     formatted: Some(formatted),
+                    execution_time_ms,
+                }
+            }
+            OutputFormat::Markdown => {
+                let formatted = format_as_markdown(&columns, &rows, row_count);
+                ExplainOutput {
+                    columns: None,
+                    rows: Vec::new(),
+                    sql: sql.to_string(),
+                    formatted: Some(formatted),
+                    execution_time_ms,
+                }
+            }
+            OutputFormat::Json => {
+                let json_rows = rows.into_iter().map(serde_json::Value::Object).collect();
+                ExplainOutput {
+                    columns: None,
+                    rows: json_rows,
+                    sql: sql.to_string(),
+                    formatted: None,
                     execution_time_ms,
                 }
             }
@@ -282,7 +301,7 @@ mod tests {
         assert!(input.params.is_empty());
         assert!(input.transaction_id.is_none());
         assert!(input.timeout_secs.is_none());
-        assert!(matches!(input.format, OutputFormat::Json));
+        assert!(matches!(input.format, OutputFormat::Compact));
     }
 
     #[test]

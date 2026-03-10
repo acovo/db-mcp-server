@@ -178,7 +178,7 @@ impl DbService {
 
     #[tool(description = "Execute a SELECT query and return results.\n\
                 Supports parameterized queries to prevent SQL injection.\n\
-                Output format: json (default), table, or markdown.\n\
+                Output format: compact (default), json, table, or markdown.\n\
                 Can run within a transaction using transaction_id.")]
     async fn query(
         &self,
@@ -212,7 +212,9 @@ impl DbService {
             .map_err(Into::into)
     }
 
-    #[tool(description = "List all tables and views in the database.\nReturns name, type, row count, and size metadata for each table.")]
+    #[tool(
+        description = "List all tables and views in the database.\nReturns name, type, row count, and size metadata for each table."
+    )]
     async fn list_tables(
         &self,
         Parameters(input): Parameters<ListTablesInput>,

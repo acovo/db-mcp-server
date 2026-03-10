@@ -13,12 +13,10 @@ use unicode_width::UnicodeWidthStr;
 #[schemars(transform = schemars::transform::RestrictFormats::default())]
 #[serde(rename_all = "lowercase")]
 pub enum OutputFormat {
-    /// Structured JSON data (default)
     #[default]
+    Compact,
     Json,
-    /// ASCII table for human-readable display
     Table,
-    /// Markdown table
     Markdown,
 }
 
@@ -42,6 +40,21 @@ pub fn format_value(value: &JsonValue) -> String {
         JsonValue::Array(arr) => serde_json::to_string(arr).unwrap_or_default(),
         JsonValue::Object(obj) => serde_json::to_string(obj).unwrap_or_default(),
     }
+}
+
+pub fn build_compact_rows(
+    columns: &[ColumnInfo],
+    rows: &[serde_json::Map<String, JsonValue>],
+) -> Vec<JsonValue> {
+    rows.iter()
+        .map(|row| {
+            let arr: Vec<JsonValue> = columns
+                .iter()
+                .map(|col| row.get(&col.name).cloned().unwrap_or(JsonValue::Null))
+                .collect();
+            JsonValue::Array(arr)
+        })
+        .collect()
 }
 
 pub fn format_as_table(
@@ -160,4 +173,56 @@ pub fn format_as_markdown(
     output.push_str(&format!("\n*{} rows*", row_count));
 
     output
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_row(pairs: &[(&str, serde_json::Value)]) -> serde_json::Map<String, serde_json::Value> {
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.clone()))
+            .collect()
+    }
+
+    #[test]
+    fn test_build_compact_rows_basic() {
+        let cols = vec![ColumnInfo::new("id"), ColumnInfo::new("name")];
+        let rows = vec![make_row(&[
+            ("id", serde_json::json!(1)),
+            ("name", serde_json::json!("Alice")),
+        ])];
+        let result = build_compact_rows(&cols, &rows);
+        assert_eq!(result, vec![serde_json::json!([1, "Alice"])]);
+    }
+
+    #[test]
+    fn test_build_compact_rows_null_values() {
+        let cols = vec![ColumnInfo::new("x")];
+        let rows = vec![make_row(&[("x", serde_json::Value::Null)])];
+        let result = build_compact_rows(&cols, &rows);
+        assert_eq!(result, vec![serde_json::json!([null])]);
+    }
+
+    #[test]
+    fn test_build_compact_rows_empty() {
+        let cols = vec![ColumnInfo::new("id")];
+        let result = build_compact_rows(&cols, &[]);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_build_compact_rows_multiple_rows() {
+        let cols = vec![ColumnInfo::new("id"), ColumnInfo::new("age")];
+        let rows = vec![
+            make_row(&[("id", serde_json::json!(1)), ("age", serde_json::json!(30))]),
+            make_row(&[("id", serde_json::json!(2)), ("age", serde_json::json!(25))]),
+        ];
+        let result = build_compact_rows(&cols, &rows);
+        assert_eq!(
+            result,
+            vec![serde_json::json!([1, 30]), serde_json::json!([2, 25])]
+        );
+    }
 }

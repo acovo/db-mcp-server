@@ -8,7 +8,9 @@ use crate::error::DbResult;
 use crate::models::{
     DEFAULT_ROW_LIMIT, MAX_ROW_LIMIT, QueryParam, QueryParamInput, QueryRequest, QueryResult,
 };
-use crate::tools::format::{ColumnInfo, OutputFormat, format_as_markdown, format_as_table};
+use crate::tools::format::{
+    ColumnInfo, OutputFormat, build_compact_rows, format_as_markdown, format_as_table,
+};
 use crate::tools::sql_validator;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -37,7 +39,7 @@ pub struct QueryInput {
     /// Query timeout in seconds. Default: 30
     #[serde(default)]
     pub timeout_secs: Option<u32>,
-    /// Output format: json (default), table, or markdown
+    /// Output format: compact (default), json, table, or markdown
     #[serde(default)]
     pub format: OutputFormat,
     /// Decode binary as UTF-8 when possible (default: true). Falls back to base64.
@@ -55,9 +57,12 @@ pub struct QueryInput {
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 #[schemars(transform = schemars::transform::RestrictFormats::default())]
 pub struct QueryOutput {
-    /// Query result rows as key-value maps. Empty if format is table/markdown.
+    /// Column names. Present only for compact format (rows are arrays); absent for json format (rows are objects).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub columns: Option<Vec<String>>,
+    /// Query result rows. Arrays of values for compact format, objects for json format. Empty for table/markdown.
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub rows: Vec<serde_json::Map<String, JsonValue>>,
+    pub rows: Vec<JsonValue>,
     /// Pre-formatted output when format is table or markdown
     #[serde(skip_serializing_if = "Option::is_none")]
     pub formatted: Option<String>,
@@ -84,17 +89,35 @@ impl QueryOutput {
         let execution_time_ms = result.execution_time_ms;
 
         match format {
-            OutputFormat::Json => Self {
-                rows: result.rows,
-                formatted: None,
-                row_count,
-                execution_time_ms,
-                warning,
-            },
+            OutputFormat::Compact => {
+                let cols: Vec<ColumnInfo> = result.columns.iter().map(ColumnInfo::new).collect();
+                let col_names = cols.iter().map(|c| c.name.clone()).collect();
+                let rows = build_compact_rows(&cols, &result.rows);
+                Self {
+                    columns: Some(col_names),
+                    rows,
+                    formatted: None,
+                    row_count,
+                    execution_time_ms,
+                    warning,
+                }
+            }
+            OutputFormat::Json => {
+                let rows = result.rows.into_iter().map(JsonValue::Object).collect();
+                Self {
+                    columns: None,
+                    rows,
+                    formatted: None,
+                    row_count,
+                    execution_time_ms,
+                    warning,
+                }
+            }
             OutputFormat::Table => {
                 let cols: Vec<ColumnInfo> = result.columns.iter().map(ColumnInfo::new).collect();
                 let formatted = format_as_table(&cols, &result.rows, row_count, execution_time_ms);
                 Self {
+                    columns: None,
                     rows: Vec::new(),
                     formatted: Some(formatted),
                     row_count,
@@ -106,6 +129,7 @@ impl QueryOutput {
                 let cols: Vec<ColumnInfo> = result.columns.iter().map(ColumnInfo::new).collect();
                 let formatted = format_as_markdown(&cols, &result.rows, row_count);
                 Self {
+                    columns: None,
                     rows: Vec::new(),
                     formatted: Some(formatted),
                     row_count,
@@ -119,7 +143,7 @@ impl QueryOutput {
 
 impl From<QueryResult> for QueryOutput {
     fn from(result: QueryResult) -> Self {
-        Self::from_result(result, OutputFormat::Json)
+        Self::from_result(result, OutputFormat::Compact)
     }
 }
 
@@ -342,7 +366,8 @@ mod tests {
         row.insert("id".to_string(), JsonValue::Number(1.into()));
 
         let output = QueryOutput {
-            rows: vec![row],
+            columns: None,
+            rows: vec![JsonValue::Object(row)],
             formatted: None,
             row_count: 1,
             execution_time_ms: 10,

@@ -3,7 +3,7 @@
 use db_mcp_server::config::PoolOptions;
 use db_mcp_server::db::{ConnectionManager, TransactionRegistry};
 use db_mcp_server::models::ConnectionConfig;
-use db_mcp_server::tools::{ExplainInput, ExplainOutput, ExplainToolHandler};
+use db_mcp_server::tools::{ExplainInput, ExplainOutput, ExplainToolHandler, OutputFormat};
 use std::sync::Arc;
 use tempfile::NamedTempFile;
 
@@ -59,7 +59,7 @@ async fn test_explain_simple_select() {
         params: vec![],
         transaction_id: None,
         timeout_secs: None,
-        format: Default::default(),
+        format: OutputFormat::Json,
         database: None,
     };
 
@@ -68,9 +68,9 @@ async fn test_explain_simple_select() {
 
     let output = result.unwrap();
     assert_eq!(output.sql, "SELECT * FROM users");
-    assert!(!output.plan.is_empty());
-    // SQLite EXPLAIN QUERY PLAN returns rows with 'detail' column
-    assert!(output.plan[0].contains_key("detail") || output.plan[0].contains_key("id"));
+    assert!(!output.rows.is_empty());
+    let first = output.rows[0].as_object().unwrap();
+    assert!(first.contains_key("detail") || first.contains_key("id"));
 }
 
 #[tokio::test]
@@ -85,7 +85,7 @@ async fn test_explain_select_with_where() {
         params: vec![],
         transaction_id: None,
         timeout_secs: None,
-        format: Default::default(),
+        format: OutputFormat::Json,
         database: None,
     };
 
@@ -93,10 +93,9 @@ async fn test_explain_select_with_where() {
     assert!(result.is_ok());
 
     let output = result.unwrap();
-    assert!(!output.plan.is_empty());
-    // Check that the plan contains some output
-    let plan_str = serde_json::to_string(&output.plan).unwrap();
-    assert!(!plan_str.is_empty());
+    assert!(!output.rows.is_empty());
+    let rows_str = serde_json::to_string(&output.rows).unwrap();
+    assert!(!rows_str.is_empty());
 }
 
 #[tokio::test]
@@ -132,7 +131,7 @@ async fn test_explain_insert_statement() {
         params: vec![],
         transaction_id: None,
         timeout_secs: None,
-        format: Default::default(),
+        format: OutputFormat::Json,
         database: None,
     };
 
@@ -140,8 +139,7 @@ async fn test_explain_insert_statement() {
     assert!(result.is_ok());
 
     let output = result.unwrap();
-    // For non-SELECT, SQLite returns opcode-level EXPLAIN (different format)
-    assert!(!output.plan.is_empty());
+    assert!(!output.rows.is_empty());
 }
 
 #[tokio::test]
@@ -230,13 +228,12 @@ async fn test_explain_output_has_execution_time() {
 
 #[tokio::test]
 async fn test_explain_output_serialization() {
+    let mut map = serde_json::Map::new();
+    map.insert("id".to_string(), serde_json::json!(0));
+    map.insert("detail".to_string(), serde_json::json!("SCAN users"));
     let output = ExplainOutput {
-        plan: vec![{
-            let mut map = serde_json::Map::new();
-            map.insert("id".to_string(), serde_json::json!(0));
-            map.insert("detail".to_string(), serde_json::json!("SCAN users"));
-            map
-        }],
+        columns: None,
+        rows: vec![serde_json::Value::Object(map)],
         sql: "SELECT * FROM users".to_string(),
         formatted: None,
         execution_time_ms: 5,
@@ -268,7 +265,7 @@ async fn test_explain_with_table_format() {
     assert!(result.is_ok());
 
     let output = result.unwrap();
-    assert!(output.plan.is_empty()); // plan should be empty when formatted
+    assert!(output.rows.is_empty());
     assert!(output.formatted.is_some());
     let formatted = output.formatted.unwrap();
     // Table format should have separator lines
@@ -296,7 +293,7 @@ async fn test_explain_with_markdown_format() {
     assert!(result.is_ok());
 
     let output = result.unwrap();
-    assert!(output.plan.is_empty()); // plan should be empty when formatted
+    assert!(output.rows.is_empty());
     assert!(output.formatted.is_some());
     let formatted = output.formatted.unwrap();
     // Markdown format should have header separator
